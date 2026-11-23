@@ -30,15 +30,52 @@ jobs:
         run: |
           mkdir -p build/logs
           set -o pipefail
-          bash scripts/build_ios.sh 2>&1 | tee build/logs/build_ios.log
+          bash scripts/build_ios.sh 2>&1 | tee build/logs/build_ios.log     
+      - name: Run MATE on iPhone Simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p build/screenshots build/logs
+
+          # 사용 가능한 iPhone 시뮬레이터 확인
+          xcrun simctl list devices available -j > build/logs/simulators.json
+
+          SIM_ID="$(python3 -c 'import json; d=json.load(open("build/logs/simulators.json")); ids=[s["udid"] for group in d["devices"].values() for s in group if s.get("name","").startswith("iPhone") and s.get("isAvailable",True)]; print(ids[0] if ids else "")')"
+
+          if [ -z "$SIM_ID" ]; then
+            echo "No available iPhone simulator"
+            exit 1
+          fi
+
+          echo "Selected simulator: $SIM_ID"
+
+          # 시뮬레이터 실행
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+
+          # MATE 설치
+          xcrun simctl install "$SIM_ID" \
+            build/DerivedData/Build/Products/Debug-iphonesimulator/MATE.app
+
+          # MATE 앱 실행
+          xcrun simctl launch "$SIM_ID" dev.mateapp.ios \
+            | tee build/logs/sim_launch.log
+
+          # 실행 화면 캡처
+          sleep 8
+
+          xcrun simctl io "$SIM_ID" screenshot \
+            build/screenshots/mate-home.png
       - name: Archive build logs and resulting .app (simulator only)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4        
         with:
           name: MATE-iOS-simulator-debug
           path: |
             build/DerivedData/Build/Products/Debug-iphonesimulator/MATE.app
             MATE.xcodeproj
-            build/logs/build_ios.log
+            build/logs/
+            build/screenshots/
           if-no-files-found: warn
           retention-days: 7
