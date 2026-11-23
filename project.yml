@@ -29,7 +29,7 @@ targets:
           - '*.md'
     dependencies:
       - framework: Vendor/llama.xcframework
-        embed: false
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.mateapp.ios
