@@ -1,0 +1,39 @@
+name: MATE iOS Simulator Build
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build-ios:
+    runs-on: macos-26
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout MATE sources
+        uses: actions/checkout@v4
+      - name: Show Xcode and compiler versions
+        run: |
+          xcodebuild -version
+          clang --version
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Cache llama.cpp built XCFramework
+        uses: actions/cache@v4
+        with:
+          path: |
+            Vendor/llama.xcframework
+          key: mate-ios-llama-a2b3018-v1-${{ runner.arch }}
+      - name: Build llama.cpp with Metal, install KaTeX, compile app
+        run: bash scripts/build_ios.sh
+      - name: Archive build logs and resulting .app (simulator only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MATE-iOS-simulator-debug
+          path: |
+            build/DerivedData/Build/Products/Debug-iphonesimulator/MATE.app
+            MATE.xcodeproj
+          if-no-files-found: warn
+          retention-days: 7

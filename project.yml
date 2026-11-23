@@ -1,0 +1,44 @@
+name: MATE
+options:
+  bundleIdPrefix: dev.mateapp
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    IPHONEOS_DEPLOYMENT_TARGET: '18.0'
+    TARGETED_DEVICE_FAMILY: '1'
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ''
+    CLANG_CXX_LANGUAGE_STANDARD: 'c++17'
+    GCC_C_LANGUAGE_STANDARD: 'gnu11'
+    ENABLE_USER_SCRIPT_SANDBOXING: 'NO'
+targets:
+  MATE:
+    type: application
+    platform: iOS
+    deploymentTarget: '18.0'
+    sources:
+      - path: iosApp/MATE
+        excludes:
+          - Info.plist
+          - Resources/katex
+      - path: katex
+        type: folder
+        buildPhase: resources
+      - path: iosApp/Native
+        excludes:
+          - '*.md'
+    dependencies:
+      - framework: Vendor/llama.xcframework
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.mateapp.ios
+        PRODUCT_NAME: MATE
+        INFOPLIST_FILE: iosApp/MATE/Info.plist
+        SWIFT_OBJC_BRIDGING_HEADER: iosApp/Native/MateBridge.h
+        HEADER_SEARCH_PATHS: '$(PROJECT_DIR)/Vendor/Headers'
+        OTHER_LDFLAGS: '$(inherited) -lc++ -framework Accelerate -framework Metal -framework MetalKit'
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: 'NO'
+    scheme:
+      testTargets: []
