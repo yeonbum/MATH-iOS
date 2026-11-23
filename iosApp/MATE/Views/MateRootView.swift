@@ -59,7 +59,7 @@ struct MateRootView: View {
         }
         .sheet(item: $activeSession) { session in
             NavigationStack {
-                MateChatView(sessionID: session.id, files: files,
+                MateChatView(files: files, sessionID: session.id,
                              dismiss: { activeSession = nil },
                              openNewFromImage: { image in
                                 activeSession = nil
