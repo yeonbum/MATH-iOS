@@ -24,9 +24,13 @@ jobs:
         with:
           path: |
             Vendor/llama.xcframework
-          key: mate-ios-llama-a2b3018-v1-${{ runner.arch }}
+          key: mate-ios-llama-a2b3018-v2-${{ runner.arch }}
       - name: Build llama.cpp with Metal, install KaTeX, compile app
-        run: bash scripts/build_ios.sh
+        shell: bash
+        run: |
+          mkdir -p build/logs
+          set -o pipefail
+          bash scripts/build_ios.sh 2>&1 | tee build/logs/build_ios.log
       - name: Archive build logs and resulting .app (simulator only)
         if: always()
         uses: actions/upload-artifact@v4
@@ -35,5 +39,6 @@ jobs:
           path: |
             build/DerivedData/Build/Products/Debug-iphonesimulator/MATE.app
             MATE.xcodeproj
+            build/logs/build_ios.log
           if-no-files-found: warn
           retention-days: 7
