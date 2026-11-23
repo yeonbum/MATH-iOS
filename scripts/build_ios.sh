@@ -50,7 +50,7 @@ if [[ -z "$HEADER" ]]; then
   exit 3
 fi
 cp -f "$(dirname "$HEADER")"/*.h Vendor/Headers/
-./scripts/install_katex.sh
+bash ./scripts/install_katex.sh
 if ! command -v xcodegen >/dev/null; then
   echo 'Install xcodegen with: brew install xcodegen' >&2
   exit 4
