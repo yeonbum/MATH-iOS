@@ -8,6 +8,9 @@ final class MateModelFiles: ObservableObject {
     @Published var visionPath: URL?
     @Published var busy = false
     @Published var message = ""
+    @Published private(set) var languageStatus = "검사 전"
+    @Published private(set) var visionStatus = "검사 전"
+    @Published private(set) var bundleDiagnostic = ""
 
     private let folder: URL
     init() {
@@ -17,17 +20,64 @@ final class MateModelFiles: ObservableObject {
         refresh()
     }
 
+    // Always look at the real installed .app folder. This also works with models
+    // inserted into Payload/MATE.app/Models BEFORE the IPA was signed.
     func refresh() {
-        let modelName = UserDefaults.standard.string(forKey: "mate.languageGGUF")
-        let visionName = UserDefaults.standard.string(forKey: "mate.visionGGUF")
-        languagePath = modelName.flatMap { name in
-            let path = folder.appendingPathComponent(name)
-            return FileManager.default.fileExists(atPath: path.path) ? path : nil
-        }
-        visionPath = visionName.flatMap { name in
-            let path = folder.appendingPathComponent(name)
-            return FileManager.default.fileExists(atPath: path.path) ? path : nil
-        }
+        let fm = FileManager.default
+        let importedLanguage = importedURL(for: "mate.languageGGUF")
+        let importedVision = importedURL(for: "mate.visionGGUF")
+        let bundledLanguage = bundledURL(named: "language.gguf")
+        let bundledVision = bundledURL(named: "vision.gguf")
+
+        languagePath = importedLanguage ?? bundledLanguage
+        visionPath = importedVision ?? bundledVision
+
+        languageStatus = status(path: languagePath, imported: importedLanguage != nil,
+                                expected: "Models/language.gguf")
+        visionStatus = status(path: visionPath, imported: importedVision != nil,
+                              expected: "Models/vision.gguf")
+
+        let modelsDirectory = Bundle.main.bundleURL.appendingPathComponent("Models", isDirectory: true)
+        let names = (try? fm.contentsOfDirectory(atPath: modelsDirectory.path)) ?? []
+        bundleDiagnostic = names.isEmpty
+            ? "설치된 앱 내부의 Models 폴더가 비어 있거나 없습니다."
+            : "앱 내부 Models 폴더: " + names.sorted().joined(separator: ", ")
+    }
+
+    private func importedURL(for key: String) -> URL? {
+        guard let name = UserDefaults.standard.string(forKey: key) else { return nil }
+        let candidate = folder.appendingPathComponent(name)
+        return isValidFile(candidate) ? candidate : nil
+    }
+
+    private func bundledURL(named name: String) -> URL? {
+        let stem = String(name.dropLast(5)) // remove '.gguf'
+        let candidates: [URL?] = [
+            // Explicit path is more robust for an IPA modified after xcodebuild.
+            Bundle.main.bundleURL.appendingPathComponent("Models", isDirectory: true)
+                .appendingPathComponent(name),
+            Bundle.main.resourceURL?.appendingPathComponent("Models", isDirectory: true)
+                .appendingPathComponent(name),
+            Bundle.main.url(forResource: stem, withExtension: "gguf", subdirectory: "Models")
+        ]
+        return candidates.compactMap { $0 }.first(where: isValidFile)
+    }
+
+    private func isValidFile(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+              !isDirectory.boolValue,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let count = attributes[.size] as? NSNumber else { return false }
+        return count.int64Value > 0
+    }
+
+    private func status(path: URL?, imported: Bool, expected: String) -> String {
+        guard let path else { return "찾지 못함 · 기대 위치: " + expected }
+        let bytes = (try? FileManager.default.attributesOfItem(atPath: path.path)[.size]
+                     as? NSNumber)?.int64Value ?? 0
+        let size = String(format: "%.2f GB", Double(bytes) / 1_000_000_000.0)
+        return (imported ? "사용자 파일" : "앱 내장") + " 인식됨 · " + size
     }
 
     func install(from pickedURL: URL, forVision: Bool) {

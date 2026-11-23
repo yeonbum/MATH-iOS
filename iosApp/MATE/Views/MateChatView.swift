@@ -124,7 +124,8 @@ struct MateChatView: View {
         .onAppear {
             guard !didStart else { return }
             didStart = true
-            if session?.messages.isEmpty == true && engine.ready { startImageTurn() }
+            guard session?.messages.isEmpty == true else { return }
+            startImageTurn()
         }
     }
 
@@ -147,9 +148,27 @@ struct MateChatView: View {
     }
 
     private func startImageTurn() {
-        guard let _ = session else { return }
+        guard session != nil, !engine.busy else { return }
+        files.refresh()
         let style = MateAnswerStyle(rawValue: answerStyle) ?? .balanced
-        request(prompt: MatePrompt.first(style: style), followUp: false)
+        let prompt = MatePrompt.first(style: style)
+        lastError = nil
+        if engine.ready {
+            request(prompt: prompt, followUp: false)
+        } else if let languageURL = files.languagePath,
+                  let visionURL = files.visionPath {
+            engine.load(modelURL: languageURL, visionURL: visionURL) { success in
+                if success {
+                    request(prompt: prompt, followUp: false)
+                } else {
+                    lastError = "모델 파일은 발견했지만 로딩 실패: "
+                        + (engine.errorMessage ?? "원인 알 수 없음")
+                }
+            }
+        } else {
+            lastError = "내장 모델 자동 인식 실패. "
+                + "언어: " + files.languageStatus + " / 이미지: " + files.visionStatus
+        }
     }
 
     private func request(prompt: String, followUp: Bool) {

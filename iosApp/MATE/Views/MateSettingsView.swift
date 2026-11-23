@@ -28,14 +28,18 @@ struct MateSettingsView: View {
                     Image(systemName: files.languagePath == nil ? "circle.dashed" : "checkmark.circle.fill")
                         .foregroundStyle(files.languagePath == nil ? Color.secondary : Color.green)
                 }
-                Button("언어 모델 파일 가져오기") { importVision = false; importing = true }
+                Text(files.languageStatus)
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("언어 모델 교체 또는 직접 가져오기") { importVision = false; importing = true }
                 HStack {
                     Label("이미지 모델", systemImage: "photo")
                     Spacer()
                     Image(systemName: files.visionPath == nil ? "circle.dashed" : "checkmark.circle.fill")
                         .foregroundStyle(files.visionPath == nil ? Color.secondary : Color.green)
                 }
-                Button("이미지 모델 파일 가져오기") { importVision = true; importing = true }
+                Text(files.visionStatus)
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("이미지 모델 교체 또는 직접 가져오기") { importVision = true; importing = true }
                 Button {
                     guard let model = files.languagePath, let vision = files.visionPath else { return }
                     engine.load(modelURL: model, visionURL: vision) { _ in }
@@ -47,6 +51,9 @@ struct MateSettingsView: View {
                     }
                 }
                 .disabled(files.languagePath == nil || files.visionPath == nil || engine.busy)
+                Button("내장 모델 다시 검사") { files.refresh() }
+                Text(files.bundleDiagnostic)
+                    .font(.caption2).foregroundStyle(.secondary)
                 Text(files.message).font(.caption).foregroundStyle(.secondary)
                 if let error = engine.errorMessage { Text(error).font(.caption).foregroundStyle(.red) }
             }
@@ -57,6 +64,7 @@ struct MateSettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }
+        .onAppear { files.refresh() }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.data], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls): if let url = urls.first { files.install(from: url, forVision: importVision) }
